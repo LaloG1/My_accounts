@@ -1,7 +1,7 @@
+import { collection, deleteDoc, doc, onSnapshot, updateDoc } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
-import { Alert } from "react-native";
-import { DataTable, IconButton, TextInput, Button } from "react-native-paper";
-import { collection, onSnapshot, doc, deleteDoc, updateDoc } from "firebase/firestore";
+import { Alert, Button, FlatList, StyleSheet, Text, TextInput, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { db } from "../../firebaseConfig";
 
 interface Usuario {
@@ -29,7 +29,6 @@ export default function UsuariosScreen() {
     return () => unsub();
   }, []);
 
-  // Eliminar usuario
   const eliminarUsuario = async (id: string) => {
     try {
       await deleteDoc(doc(db, "usuarios", id));
@@ -39,7 +38,6 @@ export default function UsuariosScreen() {
     }
   };
 
-  // Guardar edición
   const guardarEdicion = async () => {
     if (!editandoId) return;
     try {
@@ -55,68 +53,121 @@ export default function UsuariosScreen() {
     }
   };
 
-  return (
-    <DataTable>
-      <DataTable.Header>
-        <DataTable.Title>Email</DataTable.Title>
-        <DataTable.Title>Descripción</DataTable.Title>
-        <DataTable.Title>Acciones</DataTable.Title>
-      </DataTable.Header>
+  const renderItem = ({ item, index }: { item: Usuario; index: number }) => {
+    const rowColor = index % 2 === 0 ? "#f9f9f9" : "#e6f2ff"; // alterna colores
 
-      {usuarios.map((usuario) =>
-        editandoId === usuario.id ? (
-          <DataTable.Row key={usuario.id}>
-            <TextInput
-              value={nuevoEmail}
-              onChangeText={setNuevoEmail}
-              placeholder="Nuevo email"
-              style={{ flex: 1, marginRight: 5 }}
-            />
-            <TextInput
-              value={nuevaDescripcion}
-              onChangeText={setNuevaDescripcion}
-              placeholder="Nueva descripción"
-              style={{ flex: 1, marginRight: 5 }}
-            />
-            <Button mode="contained" onPress={guardarEdicion} style={{ marginRight: 5 }}>
-              Guardar
-            </Button>
-            <Button mode="outlined" onPress={() => setEditandoId(null)}>
-              Cancelar
-            </Button>
-          </DataTable.Row>
-        ) : (
-          <DataTable.Row key={usuario.id}>
-            <DataTable.Cell>{usuario.email}</DataTable.Cell>
-            <DataTable.Cell>{usuario.descripcion}</DataTable.Cell>
-            <DataTable.Cell>
-              <IconButton
-                icon="pencil"
-                size={20}
-                onPress={() => {
-                  setEditandoId(usuario.id);
-                  setNuevoEmail(usuario.email);
-                  setNuevaDescripcion(usuario.descripcion);
-                }}
-              />
-              <IconButton
-                icon="delete"
-                size={20}
-                onPress={() =>
-                  Alert.alert(
-                    "Confirmar eliminación",
-                    "¿Seguro que quieres eliminar este usuario?",
-                    [
-                      { text: "Cancelar", style: "cancel" },
-                      { text: "Eliminar", onPress: () => eliminarUsuario(usuario.id) },
-                    ]
-                  )
-                }
-              />
-            </DataTable.Cell>
-          </DataTable.Row>
-        )
-      )}
-    </DataTable>
+    if (editandoId === item.id) {
+      return (
+        <View style={[styles.tableRow, { backgroundColor: rowColor }]}>
+          <Text style={styles.cell}>{index + 1}</Text>
+          <TextInput
+            style={[styles.cell, styles.input]}
+            value={nuevoEmail}
+            onChangeText={setNuevoEmail}
+          />
+          <TextInput
+            style={[styles.cell, styles.input]}
+            value={nuevaDescripcion}
+            onChangeText={setNuevaDescripcion}
+          />
+          <View style={[styles.cell, styles.actions]}>
+            <Button title="Guardar" onPress={guardarEdicion} />
+            <Button title="Cancelar" onPress={() => setEditandoId(null)} />
+          </View>
+        </View>
+      );
+    }
+
+    return (
+      <View style={[styles.tableRow, { backgroundColor: rowColor }]}>
+        <Text style={styles.cell}>{index + 1}</Text>
+        <Text style={[styles.cell, styles.wrapText]}>{item.email}</Text>
+        <Text style={[styles.cell, styles.wrapText]}>{item.descripcion}</Text>
+        <View style={[styles.cell, styles.actions]}>
+          <Button
+            title="Editar"
+            onPress={() => {
+              setEditandoId(item.id);
+              setNuevoEmail(item.email);
+              setNuevaDescripcion(item.descripcion);
+            }}
+          />
+          <Button title="Eliminar" onPress={() => eliminarUsuario(item.id)} />
+        </View>
+      </View>
+    );
+  };
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      {/* Cabecera */}
+      <View style={styles.tableHeader}>
+        <Text style={styles.headerCellN}>#</Text>
+        <Text style={styles.headerCell}>Email</Text>
+        <Text style={styles.headerCell}>Descripción</Text>
+        <Text style={styles.headerCellActions}>Acciones</Text>
+      </View>
+
+      <FlatList
+        data={usuarios}
+        keyExtractor={(item) => item.id}
+        renderItem={renderItem}
+      />
+    </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#fff",
+    paddingHorizontal: 10,
+    paddingTop: 10, // espacio adicional para barra de notificaciones
+  },
+  tableHeader: {
+    flexDirection: "row",
+    borderBottomWidth: 2,
+    borderBottomColor: "#999",
+    paddingBottom: 5,
+    marginBottom: 5,
+    backgroundColor: "#d9e6f2",
+  },
+  headerCell: {
+    flex: 3,
+    fontWeight: "bold",
+  },
+  headerCellN: {
+    flex: 1,
+    fontWeight: "bold",
+  },
+  headerCellActions: {
+    flex: 2,
+    fontWeight: "bold",
+    textAlign: "center",
+  },
+  tableRow: {
+    flexDirection: "row",
+    borderBottomWidth: 0.5,
+    borderBottomColor: "#ccc",
+    paddingVertical: 10,
+    alignItems: "flex-start",
+  },
+  cell: {
+    flex: 3,
+    paddingRight: 5,
+  },
+  wrapText: {
+    flexWrap: "wrap",
+  },
+  actions: {
+    flex: 2,
+    flexDirection: "row",
+    justifyContent: "space-around",
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    padding: 3,
+    borderRadius: 4,
+  },
+});
